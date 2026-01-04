@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Difficulty, GameState, Card as CardType } from './types';
-import { createBoard } from './utils/gameUtils';
-import { getMinionFeedback } from './services/geminiService';
-import Card from './components/Card';
-import MinionFeedback from './components/MinionFeedback';
+import { Difficulty, GameState, Card as CardType } from './types.ts';
+import { createBoard } from './utils/gameUtils.ts';
+import { getMinionFeedback } from './services/geminiService.ts';
+import Card from './components/Card.tsx';
+import MinionFeedback from './components/MinionFeedback.tsx';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -43,8 +43,13 @@ const App: React.FC = () => {
   }, [gameState.difficulty]);
 
   const fetchFeedback = async (type: 'MATCH' | 'MISS' | 'WIN' | 'GREETING' | 'STUCK') => {
-    const msg = await getMinionFeedback(type);
-    setAiMessage(msg);
+    try {
+      const msg = await getMinionFeedback(type);
+      setAiMessage(msg);
+    } catch (e) {
+      // Graceful fallback if AI quota is exceeded
+      setAiMessage(type === 'MATCH' ? "Yay! Banana!" : "Bee-do! Poka?");
+    }
   };
 
   const handleCardClick = (index: number) => {
@@ -100,7 +105,7 @@ const App: React.FC = () => {
           newCards[secondIndex].isFlipped = false;
           setGameState(prev => ({ ...prev, cards: newCards, flippedIndices: [] }));
           setIsProcessing(false);
-        }, 450); // Snappier mismatch reset (450ms)
+        }, 450);
       }
     }
   };
@@ -128,11 +133,11 @@ const App: React.FC = () => {
       <main className="relative z-10 w-full max-w-7xl px-4 py-8 flex flex-col gap-8">
         <header className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 shadow-2xl">
           <div className="text-center lg:text-left">
-            <h1 className="text-4xl md:text-5xl font-fredoka font-bold text-yellow-400 drop-shadow-lg">
+            <h1 className="text-4xl md:text-5xl font-fredoka font-bold text-yellow-400 drop-shadow-lg tracking-tight">
               MINION MATCH
             </h1>
             <div className="flex items-center justify-center lg:justify-start gap-2 text-blue-300 font-bold uppercase text-[10px] tracking-widest mt-1">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></span>
               Banana Mission Active
             </div>
           </div>
@@ -160,14 +165,15 @@ const App: React.FC = () => {
                     <div className="w-24 h-24 bg-yellow-400 rounded-3xl flex items-center justify-center mx-auto shadow-2xl rotate-3 hover:rotate-0 transition-transform">
                        <span className="text-5xl">🍌</span>
                     </div>
-                    <h2 className="text-3xl font-fredoka font-bold text-white">Start New Mission</h2>
+                    <h2 className="text-3xl md:text-4xl font-fredoka font-bold text-white">Start New Mission</h2>
+                    <p className="text-gray-400 font-medium italic">"Bello! Find all the minions!"</p>
                  </div>
                  <div className="flex flex-wrap justify-center gap-5">
                     {(['EASY', 'MEDIUM', 'HARD'] as Difficulty[]).map(d => (
                       <button
                         key={d}
                         onClick={() => initGame(d)}
-                        className="px-10 py-4 bg-yellow-400 text-gray-900 rounded-2xl font-black text-lg hover:bg-yellow-300 transition-all shadow-xl shadow-yellow-400/20"
+                        className="px-10 py-4 bg-yellow-400 text-gray-900 rounded-2xl font-black text-lg hover:bg-yellow-300 transition-all hover:scale-105 shadow-xl shadow-yellow-400/20"
                       >
                         {d}
                       </button>
@@ -175,11 +181,11 @@ const App: React.FC = () => {
                  </div>
               </div>
             ) : (
-              <div className="bg-white/[0.02] p-6 rounded-[3rem] border border-white/5 backdrop-blur-sm shadow-2xl overflow-x-auto">
+              <div className="bg-white/[0.02] p-6 rounded-[3rem] border border-white/5 backdrop-blur-sm shadow-2xl">
                 <div className={`grid gap-3 sm:gap-4 mx-auto transition-all ${
                   gameState.difficulty === Difficulty.EASY ? 'grid-cols-3 sm:grid-cols-4 max-w-xl' : 
                   gameState.difficulty === Difficulty.MEDIUM ? 'grid-cols-4 sm:grid-cols-5 max-w-4xl' : 
-                  'grid-cols-6 max-w-5xl' 
+                  'grid-cols-4 sm:grid-cols-6 max-w-5xl' 
                 }`}>
                   {gameState.cards.map((card, idx) => (
                     <Card 
@@ -207,17 +213,18 @@ const App: React.FC = () => {
                    <h3 className="font-fredoka text-xl font-bold">Mission HQ</h3>
                  </div>
                  <div className="space-y-3">
-                   <button onClick={() => initGame(gameState.difficulty)} className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold transition-all shadow-xl">Restart Mission</button>
+                   <button onClick={() => initGame(gameState.difficulty)} className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold transition-all shadow-xl shadow-blue-600/20">Restart Mission</button>
                    <button onClick={() => setGameState(prev => ({ ...prev, status: 'IDLE' }))} className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-bold text-gray-400">Quit to Menu</button>
                  </div>
                  <div className="pt-6 border-t border-white/10">
+                   <p className="text-[10px] text-gray-500 uppercase font-black mb-4 text-center tracking-widest">Select Mission Level</p>
                    <div className="flex gap-2 p-1 bg-black/40 rounded-2xl border border-white/5">
                      {([Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD] as Difficulty[]).map(d => (
                        <button
                          key={d}
                          onClick={() => initGame(d)}
                          className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all ${
-                           gameState.difficulty === d ? 'bg-yellow-400 text-black' : 'text-gray-500'
+                           gameState.difficulty === d ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/10' : 'text-gray-500 hover:text-white'
                          }`}
                        >
                          {d}
@@ -233,12 +240,15 @@ const App: React.FC = () => {
 
       {gameState.status === 'WON' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fadeIn">
-          <div className="bg-gradient-to-br from-yellow-300 to-yellow-500 p-1 rounded-[3rem] shadow-2xl max-w-lg w-full animate-scaleIn">
+          <div className="bg-gradient-to-br from-yellow-300 to-yellow-500 p-1 rounded-[3rem] shadow-[0_0_100px_rgba(250,204,21,0.3)] max-w-lg w-full animate-scaleIn">
             <div className="bg-[#0a0f18] rounded-[2.9rem] p-10 flex flex-col items-center text-center space-y-8">
-              <span className="text-6xl md:text-7xl block animate-bounce relative z-10 leading-none">🍌</span>
+              <div className="relative">
+                <span className="text-6xl md:text-7xl block animate-bounce relative z-10 leading-none">🍌</span>
+                <div className="absolute -top-4 -right-8 bg-red-600 text-white font-black px-4 py-1 rounded-xl text-lg shadow-xl -rotate-12 border-2 border-white">WIN!</div>
+              </div>
               <h2 className="text-4xl md:text-5xl font-fredoka font-bold text-yellow-400">Banana Party!</h2>
-              <button onClick={() => initGame(gameState.difficulty)} className="w-full py-5 bg-yellow-400 text-black font-black text-2xl rounded-3xl shadow-2xl">GO AGAIN!</button>
-              <button onClick={() => setGameState(prev => ({...prev, status: 'IDLE'}))} className="w-full py-4 bg-white/5 text-gray-400 font-bold rounded-2xl">Main Menu</button>
+              <button onClick={() => initGame(gameState.difficulty)} className="w-full py-5 bg-yellow-400 text-black font-black text-2xl rounded-3xl shadow-2xl hover:scale-105 transition-transform">GO AGAIN!</button>
+              <button onClick={() => setGameState(prev => ({...prev, status: 'IDLE'}))} className="w-full py-4 bg-white/5 text-gray-400 font-bold rounded-2xl hover:bg-white/10">Main Menu</button>
             </div>
           </div>
         </div>

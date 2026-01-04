@@ -1,13 +1,13 @@
 
 import { Card, Difficulty } from "../types";
 
-// Using root-relative paths to ensure the browser finds the 'images' folder correctly
+// Standardized local image paths relative to the current host
 const MINION_IMAGES = [
-  '/images/minion1.jpg', '/images/minion2.jpg', '/images/minion3.jpg', 
-  '/images/minion4.jpg', '/images/minion5.jpg', '/images/minion6.jpg',
-  '/images/minion7.jpg', '/images/minion8.jpg', '/images/minion9.jpg',
-  '/images/minion10.jpg', '/images/minion11.jpg', '/images/minion12.jpg',
-  '/images/minion13.jpg', '/images/minion14.jpg', '/images/minion15.jpg'
+  './images/minion1.jpg', './images/minion2.jpg', './images/minion3.jpg', 
+  './images/minion4.jpg', './images/minion5.jpg', './images/minion6.jpg',
+  './images/minion7.jpg', './images/minion8.jpg', './images/minion9.jpg',
+  './images/minion10.jpg', './images/minion11.jpg', './images/minion12.jpg',
+  './images/minion13.jpg', './images/minion14.jpg', './images/minion15.jpg'
 ];
 
 export const createBoard = (difficulty: Difficulty): Card[] => {
