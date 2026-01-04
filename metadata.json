@@ -1,0 +1,7 @@
+{
+  "name": "Minion Match: AI Edition",
+  "description": "An upgraded, visually stunning memory game featuring AI-powered Minion commentary and a sleek glassmorphism UI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
