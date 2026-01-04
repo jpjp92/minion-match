@@ -1,7 +1,5 @@
 {
-  "name": "Minion Match: AI Edition",
-  "description": "An upgraded, visually stunning memory game featuring AI-powered Minion commentary and a sleek glassmorphism UI.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "name": "Minion Match: Classic Edition",
+  "description": "A visually stunning memory game featuring classic Minion phrases and a sleek glassmorphism UI.",
+  "requestFramePermissions": []
 }

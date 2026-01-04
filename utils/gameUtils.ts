@@ -1,21 +1,22 @@
 
-import { Card, Difficulty } from "../types";
+import { Card, Difficulty } from "../types.ts";
 
-// Standardized local image paths relative to the current host
+// 상대 경로(images/...)를 사용하여 환경에 구애받지 않고 파일을 찾도록 합니다.
 const MINION_IMAGES = [
-  './images/minion1.jpg', './images/minion2.jpg', './images/minion3.jpg', 
-  './images/minion4.jpg', './images/minion5.jpg', './images/minion6.jpg',
-  './images/minion7.jpg', './images/minion8.jpg', './images/minion9.jpg',
-  './images/minion10.jpg', './images/minion11.jpg', './images/minion12.jpg',
-  './images/minion13.jpg', './images/minion14.jpg', './images/minion15.jpg'
+  'images/1.jpg', 'images/2.jpg', 'images/10.jpg', 'images/11.jpg', 
+  'images/12.jpg', 'images/14.jpg', 'images/15.jpg', 'images/16.jpg', 
+  'images/17.jpg', 'images/18.jpg', 'images/20.jpg', 'images/21.jpg', 
+  'images/22.jpg', 'images/23.jpg', 'images/24.jpg'
 ];
 
 export const createBoard = (difficulty: Difficulty): Card[] => {
-  let pairCount = 6;  // Easy: 4x3 (12 cards)
-  if (difficulty === Difficulty.MEDIUM) pairCount = 10; // Medium: 5x4 (20 cards)
-  if (difficulty === Difficulty.HARD) pairCount = 12;   // Hard: 6x4 (24 cards)
+  let pairCount = 6;
+  if (difficulty === Difficulty.MEDIUM) pairCount = 10;
+  if (difficulty === Difficulty.HARD) pairCount = 12;
 
-  const selectedImages = MINION_IMAGES.slice(0, pairCount);
+  // 게임마다 다른 미니언이 나오도록 전체 풀에서 무작위로 선택
+  const shuffledPool = shuffle([...MINION_IMAGES]);
+  const selectedImages = shuffledPool.slice(0, pairCount);
   const cards: Card[] = [];
 
   selectedImages.forEach((img, index) => {
@@ -25,6 +26,7 @@ export const createBoard = (difficulty: Difficulty): Card[] => {
       isMatched: false,
       pairId: index,
     };
+    // 한 쌍(2장)씩 생성
     cards.push({ ...cardData, id: index * 2 });
     cards.push({ ...cardData, id: index * 2 + 1 });
   });
