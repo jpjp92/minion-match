@@ -12,10 +12,9 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
   const isFlipped = card.isFlipped || card.isMatched;
   const [hasError, setHasError] = useState(false);
 
-  // 경로가 images/1.jpg 형태이므로 ./를 붙여 현재 디렉토리 기준임을 명시합니다.
-  const imageSrc = `./${card.image.replace(/^\//, '')}`;
+  // utils/gameUtils.ts에서 이미 public/images/... 경로를 가지고 있으므로 그대로 사용합니다.
+  const imageSrc = card.image;
 
-  // 새 카드가 로드될 때마다 에러 상태 초기화
   useEffect(() => {
     setHasError(false);
   }, [card.image]);
@@ -31,7 +30,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
     >
       <div className="card-inner w-full h-full relative rounded-2xl sm:rounded-3xl shadow-lg transform-gpu transition-transform duration-500 group-hover:scale-[1.02]">
         
-        {/* 앞면: 미니언 고글 디자인 (CSS) */}
+        {/* 앞면: 미니언 고글 디자인 */}
         <div className="card-front absolute inset-0 bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-2xl sm:rounded-3xl flex items-center justify-center backface-hidden z-10 border-2 border-white/40 overflow-hidden shadow-[inset_0_0_40px_rgba(0,0,0,0.1)]">
           <div className="relative w-full h-full flex items-center justify-center p-3 sm:p-5">
              <div className="relative w-full max-w-[85px] aspect-square bg-white rounded-full border-[6px] sm:border-[10px] border-gray-400 flex items-center justify-center shadow-xl z-20 overflow-hidden">
@@ -52,7 +51,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
               alt="Minion" 
               className="w-full h-full object-cover"
               onError={() => {
-                console.warn(`Failed attempt: ${imageSrc}`);
+                console.warn(`Image Load Failed: ${imageSrc}`);
                 setHasError(true);
               }}
             />

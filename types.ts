@@ -22,8 +22,3 @@ export interface GameState {
   difficulty: Difficulty;
   bestScore: number;
 }
-
-export interface AIComment {
-  message: string;
-  type: 'MATCH' | 'MISS' | 'WIN' | 'GREETING' | 'STUCK';
-}
