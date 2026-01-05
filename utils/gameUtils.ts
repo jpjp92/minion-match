@@ -2,28 +2,39 @@
 import { Card, Difficulty } from "../types.ts";
 
 /**
- * 프로젝트 내 public/images 폴더에 있는 이미지들을 정의합니다.
- * JS 버전에서 사용하던 방식처럼 안정적인 로컬 경로를 생성합니다.
+ * GitHub API를 사용하여 'minion-match' 저장소의 실제 이미지 파일 목록을 가져옵니다.
  */
 export const fetchAvailableImages = async (): Promise<string[]> => {
-  // 기본적으로 1.jpg ~ 10.jpg가 있다고 가정 (미니언 게임의 표준 구성)
-  const defaultImages = Array.from({ length: 10 }, (_, i) => `/images/${i + 1}.jpg`);
+  const REPO_OWNER = 'jpjp92';
+  const REPO_NAME = 'minion-match';
+  const PATH = 'public/images';
   
   try {
-    // GitHub API는 실제 파일 목록을 동적으로 가져오고 싶을 때만 서브로 사용
-    const response = await fetch(`https://api.github.com/repos/jpjp92/memory-game-minion/contents/public/images`);
-    if (response.ok) {
-      const data = await response.json();
-      const apiImages = data
-        .filter((file: any) => file.type === 'file' && /\.(jpe?g|png|webp)$/i.test(file.name))
-        .map((file: any) => `/images/${file.name}`);
-      return apiImages.length > 0 ? apiImages : defaultImages;
-    }
-  } catch (e) {
-    console.warn("Using default image paths due to API failure");
+    const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${PATH}?t=${Date.now()}`);
+    
+    if (!response.ok) throw new Error('GitHub API response was not ok');
+    
+    const data = await response.json();
+    
+    // 파일 목록에서 이미지 파일만 필터링하고 실제 raw 다운로드 URL 추출
+    const imageUrls = data
+      .filter((file: any) => 
+        file.type === 'file' && 
+        /\.(jpe?g|png|webp|gif)$/i.test(file.name)
+      )
+      .map((file: any) => file.download_url);
+
+    if (imageUrls.length === 0) throw new Error('No images found in the repository');
+
+    return imageUrls;
+  } catch (error) {
+    console.error("Error fetching images from GitHub API:", error);
+    // API 실패 시 폴백: 2.jpg부터 9.jpg까지 시도
+    return [
+      '/images/2.jpg', '/images/3.jpg', '/images/4.jpg', '/images/5.jpg', 
+      '/images/6.jpg', '/images/7.jpg', '/images/8.jpg', '/images/9.jpg'
+    ];
   }
-  
-  return defaultImages;
 };
 
 /**
@@ -43,8 +54,8 @@ export const preloadImages = (images: string[]): Promise<void[]> => {
           }
         };
         img.onerror = () => {
-          console.error(`Failed to preload: ${src}`);
-          resolve(); // 실패해도 일단 진행
+          console.warn(`Failed to preload: ${src}`);
+          resolve(); 
         };
       });
     })
@@ -57,7 +68,7 @@ export const createBoard = (difficulty: Difficulty, imagePool: string[]): Card[]
 
   const shuffledPool = shuffle([...imagePool]);
   const selectedImages = [];
-  // 이미지 풀이 부족하면 반복해서 사용
+  
   for (let i = 0; i < pairCount; i++) {
     selectedImages.push(shuffledPool[i % shuffledPool.length]);
   }
