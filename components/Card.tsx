@@ -12,8 +12,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
   const isFlipped = card.isFlipped || card.isMatched;
   const [hasError, setHasError] = useState(false);
 
-  const imageSrc = card.image;
-
+  // 이미지 경로가 바뀔 때만 에러 상태 초기화
   useEffect(() => {
     setHasError(false);
   }, [card.image]);
@@ -46,20 +45,19 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
         <div className="card-back absolute inset-0 bg-white rounded-lg sm:rounded-2xl rotate-y-180 backface-hidden overflow-hidden border sm:border-4 border-white shadow-2xl flex items-center justify-center">
           {!hasError ? (
             <img 
-              src={imageSrc} 
+              src={card.image} 
               alt="Minion" 
               className="w-full h-full object-cover"
+              loading="eager"
               onError={() => {
-                console.warn(`Image Load Failed: ${imageSrc}`);
+                console.warn(`Failed to load image: ${card.image}`);
                 setHasError(true);
               }}
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-yellow-50 p-1 text-center">
-               <span className="text-xl sm:text-3xl mb-1 animate-bounce">🍌</span>
-               <div className="px-0.5 leading-tight">
-                 <p className="text-[6px] sm:text-[8px] text-yellow-700 font-bold uppercase">Not Found</p>
-               </div>
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 p-2 text-center">
+               <span className="text-2xl sm:text-3xl mb-1">❓</span>
+               <p className="text-[8px] sm:text-[10px] text-gray-400 font-bold uppercase leading-tight">Image<br/>Not Found</p>
             </div>
           )}
           
