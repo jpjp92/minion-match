@@ -24,7 +24,6 @@ const App: React.FC = () => {
   const [timer, setTimer] = useState(0);
   const timerRef = useRef<number | null>(null);
 
-  // 1. 앱 시작 시 이미지 풀 가져오기
   useEffect(() => {
     const loadAssets = async () => {
       const images = await fetchAvailableImages();
@@ -41,7 +40,6 @@ const App: React.FC = () => {
     if (imagePool.length === 0) return;
 
     const newCards = createBoard(difficulty, imagePool);
-    // 이미지 프리로딩
     newCards.forEach(c => { const img = new Image(); img.src = c.image; });
 
     setGameState({
@@ -102,7 +100,7 @@ const App: React.FC = () => {
               matchedCards[firstIdx].isMatched = true;
               matchedCards[secondIdx].isMatched = true;
               const nextMatches = current.matches + 1;
-              const totalPairs = current.difficulty === Difficulty.HARD ? 12 : current.difficulty === Difficulty.MEDIUM ? 10 : 6;
+              const totalPairs = current.cards.length / 2;
               const hasWon = nextMatches === totalPairs;
               if (hasWon && timerRef.current) clearInterval(timerRef.current);
               setIsProcessing(false);
@@ -156,6 +154,8 @@ const App: React.FC = () => {
     );
   }
 
+  const actualTotalPairs = gameState.cards.length / 2;
+
   return (
     <div className="min-h-screen flex flex-col items-center bg-[#050a0f] text-white selection:bg-yellow-400">
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -173,7 +173,7 @@ const App: React.FC = () => {
             {[
               { label: 'Moves', value: gameState.moves, color: 'text-white' },
               { label: 'Time', value: `${Math.floor(timer/60)}:${(timer%60).toString().padStart(2,'0')}`, color: 'text-blue-400' },
-              { label: 'Pairs', value: `${gameState.matches} / ${gameState.difficulty === Difficulty.HARD ? 12 : gameState.difficulty === Difficulty.MEDIUM ? 10 : 6}`, color: 'text-yellow-400' },
+              { label: 'Pairs', value: `${gameState.matches} / ${actualTotalPairs}`, color: 'text-yellow-400' },
               { label: 'Best', value: gameState.bestScore === 0 ? '--' : gameState.bestScore, color: 'text-purple-400' }
             ].map((stat, i) => (
               <div key={i} className="px-4 py-1 text-center border-r last:border-0 border-white/10 sm:min-w-[90px]">
@@ -190,19 +190,21 @@ const App: React.FC = () => {
               <div className="h-[550px] flex flex-col items-center justify-center space-y-8 bg-white/[0.02] rounded-[3rem] border-2 border-dashed border-white/10">
                  <span className="text-8xl animate-bounce">🍌</span>
                  <h2 className="text-2xl font-bold font-fredoka">Select Your Mission</h2>
-                 <div className="flex flex-wrap justify-center gap-4 px-6">
-                    {(['EASY', 'MEDIUM', 'HARD'] as Difficulty[]).map(d => (
-                      <button key={d} onClick={() => initGame(d)} className="px-10 py-4 bg-yellow-400 text-black rounded-2xl font-black hover:scale-105 transition-all active:scale-95 shadow-lg shadow-yellow-400/20">{d}</button>
+                 <div className="flex flex-wrap justify-center gap-6 px-6 w-full max-w-lg">
+                    {(['EASY', 'MEDIUM'] as Difficulty[]).map(d => (
+                      <button 
+                        key={d} 
+                        onClick={() => initGame(d)} 
+                        className="w-full sm:w-44 py-5 bg-yellow-400 text-black rounded-2xl font-black text-xl hover:scale-105 transition-all active:scale-95 shadow-lg shadow-yellow-400/20"
+                      >
+                        {d}
+                      </button>
                     ))}
                  </div>
               </div>
             ) : (
               <div className="bg-white/[0.02] p-4 sm:p-6 rounded-[3rem] border border-white/5 backdrop-blur-md shadow-2xl flex items-center justify-center min-h-[550px]">
-                <div className={`grid gap-3 w-full mx-auto ${
-                  gameState.difficulty === Difficulty.EASY ? 'grid-cols-3 sm:grid-cols-4 max-w-xl' : 
-                  gameState.difficulty === Difficulty.MEDIUM ? 'grid-cols-4 sm:grid-cols-5 max-w-3xl' : 
-                  'grid-cols-4 sm:grid-cols-6 max-w-4xl' 
-                }`}>
+                <div className="grid grid-cols-4 gap-3 w-full mx-auto justify-items-center max-w-xl">
                   {gameState.cards.map((card, idx) => (
                     <Card key={card.id} card={card} onClick={() => handleCardClick(idx)} disabled={isProcessing} />
                   ))}
@@ -228,8 +230,8 @@ const App: React.FC = () => {
 
                 <div className="pt-4 border-t border-white/10">
                    <p className="text-[9px] text-gray-500 uppercase font-black mb-3 text-center tracking-widest">Difficulty</p>
-                   <div className="grid grid-cols-3 gap-1 p-1 bg-black/40 rounded-xl">
-                     {([Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD] as Difficulty[]).map(d => (
+                   <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-xl">
+                     {([Difficulty.EASY, Difficulty.MEDIUM] as Difficulty[]).map(d => (
                        <button key={d} onClick={() => initGame(d)} className={`py-2 text-[9px] font-black rounded-lg transition-all ${gameState.difficulty === d ? 'bg-yellow-400 text-black' : 'text-gray-500 hover:text-white'}`}>{d}</button>
                      ))}
                    </div>
@@ -286,7 +288,7 @@ const App: React.FC = () => {
                         <td className="px-4 py-4 font-bold">{entry.name}</td>
                         <td className="px-4 py-4 text-center font-black text-blue-700">{entry.moves}</td>
                         <td className="px-4 py-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${entry.difficulty === Difficulty.HARD ? 'bg-red-100 text-red-600' : entry.difficulty === Difficulty.MEDIUM ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                          <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${entry.difficulty === Difficulty.MEDIUM ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
                             {entry.difficulty}
                           </span>
                         </td>
