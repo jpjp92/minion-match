@@ -56,8 +56,8 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 p-2 text-center">
-               <span className="text-2xl sm:text-3xl mb-1">❓</span>
-               <p className="text-[8px] sm:text-[10px] text-gray-400 font-bold uppercase leading-tight">Image<br/>Not Found</p>
+               <span className="text-2xl sm:text-3xl mb-1">🍌</span>
+               <p className="text-[8px] sm:text-[10px] text-gray-500 font-bold uppercase leading-tight">Banana<br/>Missing!</p>
             </div>
           )}
           

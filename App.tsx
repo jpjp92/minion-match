@@ -2,12 +2,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Difficulty, GameState, Card as CardType, LeaderboardEntry } from './types.ts';
 import { createBoard, fetchAvailableImages, preloadImages } from './utils/gameUtils.ts';
+import { getMinionFeedback } from './services/geminiService.ts';
 import Card from './components/Card.tsx';
+import MinionFeedback from './components/MinionFeedback.tsx';
 
 const App: React.FC = () => {
   const [imagePool, setImagePool] = useState<string[]>([]);
   const [isLoadingPool, setIsLoadingPool] = useState(true);
   const [isGameLoading, setIsGameLoading] = useState(false);
+  const [minionMsg, setMinionMsg] = useState("Bello! Ready for Banana?");
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  
   const [gameState, setGameState] = useState<GameState>({
     cards: [],
     flippedIndices: [],
@@ -25,6 +30,14 @@ const App: React.FC = () => {
   const [timer, setTimer] = useState(0);
   const timerRef = useRef<number | null>(null);
 
+  // Gemini 피드백 업데이트 함수
+  const updateFeedback = async (type: 'MATCH' | 'MISS' | 'WIN' | 'GREETING' | 'STUCK', moves: number) => {
+    setIsAiThinking(true);
+    const feedback = await getMinionFeedback(type, moves, gameState.difficulty);
+    setMinionMsg(feedback);
+    setIsAiThinking(false);
+  };
+
   useEffect(() => {
     const loadAssets = async () => {
       const images = await fetchAvailableImages();
@@ -35,6 +48,9 @@ const App: React.FC = () => {
 
     const saved = localStorage.getItem('minion_leaderboard');
     if (saved) setLeaderboard(JSON.parse(saved));
+    
+    // 첫 인사
+    updateFeedback('GREETING', 0);
   }, []);
 
   const initGame = useCallback(async (difficulty: Difficulty = gameState.difficulty) => {
@@ -43,7 +59,7 @@ const App: React.FC = () => {
     setIsGameLoading(true);
     const newCards = createBoard(difficulty, imagePool);
     
-    // 실제 이미지 파일들을 브라우저 메모리에 캐싱
+    // 카드 이미지들만 추출해서 프리로딩
     const imageUrls = Array.from(new Set(newCards.map(c => c.image)));
     await preloadImages(imageUrls);
 
@@ -62,26 +78,9 @@ const App: React.FC = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = window.setInterval(() => setTimer(t => t + 1), 1000);
     setIsGameLoading(false);
+    
+    setMinionMsg("Tulaliloo! Go go go!");
   }, [gameState.difficulty, imagePool]);
-
-  const saveToLeaderboard = () => {
-    if (!playerName.trim()) return;
-    const newEntry: LeaderboardEntry = {
-      id: Date.now().toString(),
-      name: playerName.trim(),
-      moves: gameState.moves,
-      time: timer,
-      difficulty: gameState.difficulty,
-      date: new Date().toLocaleDateString()
-    };
-    const updated = [...leaderboard, newEntry]
-      .sort((a, b) => a.moves !== b.moves ? a.moves - b.moves : a.time - b.time)
-      .slice(0, 10);
-    setLeaderboard(updated);
-    localStorage.setItem('minion_leaderboard', JSON.stringify(updated));
-    setGameState(prev => ({ ...prev, status: 'IDLE' }));
-    setIsLeaderboardOpen(true);
-  };
 
   const handleCardClick = (index: number) => {
     if (isProcessing || gameState.status !== 'PLAYING') return;
@@ -100,6 +99,9 @@ const App: React.FC = () => {
         const nextMoves = prev.moves + 1;
 
         if (isMatch) {
+          // 맞췄을 때 AI 반응 (가끔씩만 호출하여 성능 보존)
+          if (Math.random() > 0.4) updateFeedback('MATCH', nextMoves);
+          
           setTimeout(() => {
             setGameState(current => {
               const matchedCards = [...current.cards];
@@ -108,7 +110,10 @@ const App: React.FC = () => {
               const nextMatches = current.matches + 1;
               const totalPairs = current.cards.length / 2;
               const hasWon = nextMatches === totalPairs;
-              if (hasWon && timerRef.current) clearInterval(timerRef.current);
+              if (hasWon) {
+                if (timerRef.current) clearInterval(timerRef.current);
+                updateFeedback('WIN', nextMoves);
+              }
               setIsProcessing(false);
               return {
                 ...current,
@@ -119,8 +124,11 @@ const App: React.FC = () => {
                 bestScore: hasWon ? updateBestScore(nextMoves, current.difficulty) : current.bestScore
               };
             });
-          }, 200);
+          }, 400);
         } else {
+          // 틀렸을 때 AI 반응
+          if (nextMoves % 5 === 0) updateFeedback('MISS', nextMoves);
+
           setTimeout(() => {
             setGameState(current => {
               const resetCards = [...current.cards];
@@ -129,7 +137,7 @@ const App: React.FC = () => {
               setIsProcessing(false);
               return { ...current, cards: resetCards, flippedIndices: [] };
             });
-          }, 600);
+          }, 800);
         }
         return { ...prev, cards: updatedCards, flippedIndices: newFlipped, moves: nextMoves };
       }
@@ -151,6 +159,25 @@ const App: React.FC = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
+  const saveToLeaderboard = () => {
+    if (!playerName.trim()) return;
+    const newEntry: LeaderboardEntry = {
+      id: Date.now().toString(),
+      name: playerName.trim(),
+      moves: gameState.moves,
+      time: timer,
+      difficulty: gameState.difficulty,
+      date: new Date().toLocaleDateString()
+    };
+    const updated = [...leaderboard, newEntry]
+      .sort((a, b) => a.moves !== b.moves ? a.moves - b.moves : a.time - b.time)
+      .slice(0, 10);
+    setLeaderboard(updated);
+    localStorage.setItem('minion_leaderboard', JSON.stringify(updated));
+    setGameState(prev => ({ ...prev, status: 'IDLE' }));
+    setIsLeaderboardOpen(true);
+  };
+
   if (isLoadingPool) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#050a0f] text-white">
@@ -168,8 +195,13 @@ const App: React.FC = () => {
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(30,58,138,0.1),transparent_70%)]"></div>
       </div>
 
-      <main className="relative z-10 w-full max-w-5xl px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-5">
-        <header className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-5 shadow-2xl">
+      <main className="relative z-10 w-full max-w-5xl px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4">
+        {/* Gemini Feedback Section */}
+        <div className="flex justify-center sm:justify-start px-2">
+           <MinionFeedback message={minionMsg} isThinking={isAiThinking} />
+        </div>
+
+        <header className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-5 shadow-2xl mt-[-1rem]">
           <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-4xl font-fredoka font-bold text-yellow-400 leading-none tracking-tight">MINION MATCH</h1>
             <p className="text-blue-300 font-black uppercase text-[8px] sm:text-[9px] tracking-widest mt-1">Classic Edition</p>
@@ -197,7 +229,7 @@ const App: React.FC = () => {
                  {isGameLoading ? (
                    <>
                      <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                     <p className="font-fredoka text-lg font-bold text-yellow-400">Preparing Banana Party...</p>
+                     <p className="font-fredoka text-lg font-bold text-yellow-400 animate-pulse">Preloading Bananas...</p>
                    </>
                  ) : (
                    <>
@@ -234,13 +266,13 @@ const App: React.FC = () => {
                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                    </div>
-                   <h3 className="font-fredoka text-sm sm:text-base font-bold">Mission Control</h3>
+                   <h3 className="font-fredoka text-sm sm:text-base font-bold text-blue-400">MISSION CONTROL</h3>
                 </div>
 
                 <div className="grid grid-cols-3 sm:flex sm:flex-col gap-2">
                    <button onClick={() => initGame(gameState.difficulty)} className="py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-black text-[10px] sm:text-xs transition-all active:scale-95">Restart</button>
-                   <button onClick={() => setIsLeaderboardOpen(true)} className="py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black rounded-xl font-black text-[10px] sm:text-xs transition-all active:scale-95 shadow-lg shadow-yellow-400/10 flex items-center justify-center gap-1">🏆 Board</button>
-                   <button onClick={() => setGameState(prev => ({ ...prev, status: 'IDLE' }))} className="py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-gray-400 text-[9px] sm:text-[10px] transition-colors">Menu</button>
+                   <button onClick={() => setIsLeaderboardOpen(true)} className="py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black rounded-xl font-black text-[10px] sm:text-xs transition-all active:scale-95 shadow-lg shadow-yellow-400/10">🏆 Board</button>
+                   <button onClick={() => setGameState(prev => ({ ...prev, status: 'IDLE' }))} className="py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-gray-400 text-[9px] sm:text-[10px]">Menu</button>
                 </div>
 
                 <div className="pt-3 sm:pt-4 border-t border-white/10">
