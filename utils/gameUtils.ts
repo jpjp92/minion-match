@@ -27,6 +27,25 @@ export const fetchAvailableImages = async (): Promise<string[]> => {
   }
 };
 
+/**
+ * 선택된 이미지들을 브라우저 메모리에 프리로딩합니다.
+ */
+export const preloadImages = (images: string[]): Promise<void[]> => {
+  return Promise.all(
+    images.map((src) => {
+      return new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => resolve();
+        img.onerror = () => {
+          console.warn(`Failed to preload: ${src}`);
+          resolve(); // 하나 실패해도 게임은 진행되게 함
+        };
+      });
+    })
+  );
+};
+
 export const createBoard = (difficulty: Difficulty, imagePool: string[]): Card[] => {
   let pairCount = 6; // EASY: 12 cards (4x3)
   if (difficulty === Difficulty.MEDIUM) pairCount = 8; // MEDIUM: 16 cards (4x4)
