@@ -23,7 +23,7 @@
         .perspective-1000 { perspective: 1000px; }
         .card-inner {
             transform-style: preserve-3d;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.15); /* 애니메이션 시간 단축 */
         }
         .card-flipped .card-inner { transform: rotateY(180deg); }
         .backface-hidden {
@@ -32,24 +32,12 @@
         }
         .rotate-y-180 { transform: rotateY(180deg); }
 
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
-            100% { transform: translateY(0px); }
-        }
-        .floating { animation: float 3s ease-in-out infinite; }
-
-        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .animate-scaleIn { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(250,204,21,0.2); border-radius: 10px; }
-        
-        /* 모바일 터치 하이라이트 제거 */
         * { -webkit-tap-highlight-color: transparent; }
     </style>
 <script type="importmap">

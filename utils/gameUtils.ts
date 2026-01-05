@@ -2,27 +2,43 @@
 import { Card, Difficulty } from "../types.ts";
 
 /**
- * [중요] public/images 폴더에 실제로 존재하는 파일명만 아래 배열에 넣어주세요.
- * 번호가 비어있다면 해당 번호를 제거하시면 됩니다.
+ * GitHub API를 사용하여 저장소의 이미지 파일 목록을 가져옵니다.
  */
-const MINION_IMAGE_POOL = [
-  '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', 
-  '7.jpg', '8.jpg', '9.jpg', '10.jpg', '12.jpg', '13.jpg', 
-  '15.jpg', '16.jpg', '17.jpg', '18.jpg', '19.jpg', '20.jpg', 
-  '21.jpg', '22.jpg', '23.jpg', '25.jpg'
-];
+export const fetchAvailableImages = async (): Promise<string[]> => {
+  try {
+    // 사용자님의 레포지토리 경로를 기반으로 파일 목록 조회
+    const response = await fetch('https://api.github.com/repos/jpjp92/memory-game-minion/contents/public/images');
+    
+    if (!response.ok) throw new Error('Failed to fetch image list');
+    
+    const data = await response.json();
+    
+    // 이미지 파일만 필터링 (jpg, png, webp 등)
+    const imageFiles = data
+      .filter((file: any) => 
+        file.type === 'file' && 
+        /\.(jpe?g|png|webp|gif)$/i.test(file.name)
+      )
+      .map((file: any) => file.name);
 
-export const createBoard = (difficulty: Difficulty): Card[] => {
+    return imageFiles;
+  } catch (error) {
+    console.error("Error fetching images from GitHub:", error);
+    // API 실패 시 안전한 폴백 (최소한의 기본 리스트)
+    return ['2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg', '9.jpg'];
+  }
+};
+
+export const createBoard = (difficulty: Difficulty, imagePool: string[]): Card[] => {
   let pairCount = 6;
   if (difficulty === Difficulty.MEDIUM) pairCount = 10;
   if (difficulty === Difficulty.HARD) pairCount = 12;
 
-  // 1. 이미지 폴더 경로 (상대 경로 사용)
   const imagePath = 'images/';
 
-  // 2. 전체 풀에서 랜덤하게 필요한 만큼만 선택
-  const shuffledPool = shuffle([...MINION_IMAGE_POOL]);
-  const selectedImages = shuffledPool.slice(0, pairCount);
+  // 제공된 이미지 풀에서 랜덤하게 선택
+  const shuffledPool = shuffle([...imagePool]);
+  const selectedImages = shuffledPool.slice(0, Math.min(pairCount, imagePool.length));
   
   const cards: Card[] = [];
 
@@ -33,7 +49,7 @@ export const createBoard = (difficulty: Difficulty): Card[] => {
       isMatched: false,
       pairId: index,
     };
-    // 한 쌍씩 생성
+    // 한 쌍 생성
     cards.push({ ...cardData, id: index * 2 });
     cards.push({ ...cardData, id: index * 2 + 1 });
   });
