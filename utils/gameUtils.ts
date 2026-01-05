@@ -1,12 +1,15 @@
 
 import { Card, Difficulty } from "../types.ts";
 
-// 모든 환경(GitHub, Vercel 등)에서 가장 안전한 절대 경로를 사용합니다.
-const MINION_IMAGES = [
-  '/images/1.jpg', '/images/2.jpg', '/images/10.jpg', '/images/11.jpg', 
-  '/images/12.jpg', '/images/14.jpg', '/images/15.jpg', '/images/16.jpg', 
-  '/images/17.jpg', '/images/18.jpg', '/images/20.jpg', '/images/21.jpg', 
-  '/images/22.jpg', '/images/23.jpg', '/images/24.jpg'
+/**
+ * [중요] public/images 폴더에 실제로 존재하는 파일명만 아래 배열에 넣어주세요.
+ * 번호가 비어있다면 해당 번호를 제거하시면 됩니다.
+ */
+const MINION_IMAGE_POOL = [
+  '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', 
+  '7.jpg', '8.jpg', '9.jpg', '10.jpg', '12.jpg', '13.jpg', 
+  '15.jpg', '16.jpg', '17.jpg', '18.jpg', '19.jpg', '20.jpg', 
+  '21.jpg', '22.jpg', '23.jpg', '25.jpg'
 ];
 
 export const createBoard = (difficulty: Difficulty): Card[] => {
@@ -14,17 +17,23 @@ export const createBoard = (difficulty: Difficulty): Card[] => {
   if (difficulty === Difficulty.MEDIUM) pairCount = 10;
   if (difficulty === Difficulty.HARD) pairCount = 12;
 
-  const shuffledPool = shuffle([...MINION_IMAGES]);
+  // 1. 이미지 폴더 경로 (상대 경로 사용)
+  const imagePath = 'images/';
+
+  // 2. 전체 풀에서 랜덤하게 필요한 만큼만 선택
+  const shuffledPool = shuffle([...MINION_IMAGE_POOL]);
   const selectedImages = shuffledPool.slice(0, pairCount);
+  
   const cards: Card[] = [];
 
-  selectedImages.forEach((img, index) => {
+  selectedImages.forEach((imgName, index) => {
     const cardData = {
-      image: img,
+      image: `${imagePath}${imgName}`,
       isFlipped: false,
       isMatched: false,
       pairId: index,
     };
+    // 한 쌍씩 생성
     cards.push({ ...cardData, id: index * 2 });
     cards.push({ ...cardData, id: index * 2 + 1 });
   });
