@@ -3,6 +3,7 @@ import { Card, Difficulty } from "../types.ts";
 
 /**
  * GitHub API를 사용하여 'minion-match' 저장소의 실제 이미지 파일 목록을 가져옵니다.
+ * 더 안정적인 raw.githubusercontent.com 주소로 직접 변환합니다.
  */
 export const fetchAvailableImages = async (): Promise<string[]> => {
   const REPO_OWNER = 'jpjp92';
@@ -16,23 +17,29 @@ export const fetchAvailableImages = async (): Promise<string[]> => {
     
     const data = await response.json();
     
-    // 파일 목록에서 이미지 파일만 필터링하고 실제 raw 다운로드 URL 추출
+    // 더 안정적인 Raw URL 구조로 직접 생성
     const imageUrls = data
       .filter((file: any) => 
         file.type === 'file' && 
         /\.(jpe?g|png|webp|gif)$/i.test(file.name)
       )
-      .map((file: any) => file.download_url);
+      .map((file: any) => `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${PATH}/${file.name}`);
 
     if (imageUrls.length === 0) throw new Error('No images found in the repository');
 
     return imageUrls;
   } catch (error) {
     console.error("Error fetching images from GitHub API:", error);
-    // API 실패 시 폴백: 2.jpg부터 9.jpg까지 시도
+    // API 실패 시 폴백 (일부 기본 이미지 경로)
     return [
-      '/images/2.jpg', '/images/3.jpg', '/images/4.jpg', '/images/5.jpg', 
-      '/images/6.jpg', '/images/7.jpg', '/images/8.jpg', '/images/9.jpg'
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/2.jpg',
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/3.jpg',
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/4.jpg',
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/5.jpg',
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/6.jpg',
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/7.jpg',
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/8.jpg',
+      'https://raw.githubusercontent.com/jpjp92/minion-match/main/public/images/9.jpg'
     ];
   }
 };

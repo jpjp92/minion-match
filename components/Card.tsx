@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, memo } from 'react';
 import { Card as CardType } from '../types.ts';
 
 interface CardProps {
@@ -10,22 +10,15 @@ interface CardProps {
 }
 
 const Card: React.FC<CardProps> = ({ card, onClick, disabled, isPreviewing }) => {
-  // 프리뷰 중이거나 유저가 선택했거나 이미 맞춘 경우 사진면(face-back)을 노출
   const isRevealed = isPreviewing || card.isFlipped || card.isMatched;
   const isMatched = card.isMatched;
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    setImgLoaded(false);
-    setHasError(false);
-    if (!card.image) return;
-    
-    const img = new Image();
-    img.src = card.image;
-    img.onload = () => setImgLoaded(true);
-    img.onerror = () => setHasError(true);
-  }, [card.image]);
+  // 이미지가 이미 캐시에 있는 경우 onLoad가 즉시 발생하지 않을 수 있으므로
+  // handleLoad 함수를 통해 상태를 관리합니다.
+  const handleLoad = () => setImgLoaded(true);
+  const handleError = () => setHasError(true);
 
   return (
     <div 
@@ -37,11 +30,10 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled, isPreviewing }) =>
         }
       }}
     >
-      {/* 3D 레이어 렌더링 실패 시를 대비한 최후의 보루 (노란색 배경) */}
       <div className="absolute inset-0 bg-yellow-400 rounded-lg sm:rounded-2xl shadow-inner -z-10"></div>
 
       <div className="card-inner">
-        {/* 앞면 (눈알) - rotateY(0deg) */}
+        {/* 앞면 (눈알) */}
         <div className="face face-front bg-gradient-to-br from-yellow-300 to-yellow-500 border sm:border-2 border-white/40 shadow-lg">
           <div className="relative w-full h-full flex items-center justify-center p-2">
              <div className="relative w-full max-w-[50px] sm:max-w-[70px] aspect-square bg-white rounded-full border-[3px] sm:border-[8px] border-gray-400 flex items-center justify-center shadow-md z-20">
@@ -54,13 +46,14 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled, isPreviewing }) =>
           <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-blue-600/10 backdrop-blur-sm"></div>
         </div>
 
-        {/* 뒷면 (미니언 사진) - rotateY(180deg) */}
-        <div className="face face-back bg-yellow-400 border sm:border-4 border-white shadow-2xl">
+        {/* 뒷면 (미니언 사진) */}
+        <div className="face face-back bg-yellow-400 border sm:border-4 border-white shadow-2xl relative overflow-hidden">
+          {/* 로딩 중이거나 에러 발생 시의 배경 레이어 */}
           {(!imgLoaded || hasError) && (
-            <div className="absolute inset-0 bg-yellow-400 flex flex-col items-center justify-center p-2 text-center">
-               <span className="text-xl sm:text-2xl mb-1 animate-bounce">🍌</span>
-               <p className="text-[8px] sm:text-[10px] text-gray-900 font-bold uppercase tracking-tight">
-                 {hasError ? 'No Banana' : 'Ready'}
+            <div className="absolute inset-0 bg-yellow-400 flex flex-col items-center justify-center p-2 text-center z-10">
+               <span className={`text-xl sm:text-2xl mb-1 ${!hasError ? 'animate-pulse' : 'animate-bounce'}`}>🍌</span>
+               <p className="text-[8px] sm:text-[10px] text-gray-900 font-bold uppercase tracking-widest">
+                 {hasError ? 'No Banana' : 'Bello...'}
                </p>
             </div>
           )}
@@ -68,7 +61,10 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled, isPreviewing }) =>
           <img 
             src={card.image} 
             alt="Minion" 
-            className={`w-full h-full object-cover transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={handleLoad}
+            onError={handleError}
+            loading="eager"
+            className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
           
           {isMatched && (
@@ -91,6 +87,7 @@ export default memo(Card, (prev, next) => {
     prev.card.isFlipped === next.card.isFlipped &&
     prev.card.isMatched === next.card.isMatched &&
     prev.disabled === next.disabled &&
-    prev.isPreviewing === next.isPreviewing
+    prev.isPreviewing === next.isPreviewing &&
+    prev.card.image === next.card.image
   );
 });
