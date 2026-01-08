@@ -65,12 +65,12 @@ const App: React.FC = () => {
     setIsGameLoading(false);
   }, [gameState.difficulty, imagePool]);
 
-  const handleCardClick = (index: number) => {
+  const handleCardClick = useCallback((index: number) => {
     if (isProcessing || gameState.status !== 'PLAYING') return;
-    const card = gameState.cards[index];
-    if (card.isFlipped || card.isMatched) return;
-
+    
     setGameState(prev => {
+      if (prev.cards[index].isFlipped || prev.cards[index].isMatched) return prev;
+      
       const updatedCards = [...prev.cards];
       updatedCards[index] = { ...updatedCards[index], isFlipped: true };
       const newFlipped = [...prev.flippedIndices, index];
@@ -82,11 +82,13 @@ const App: React.FC = () => {
         const nextMoves = prev.moves + 1;
 
         if (isMatch) {
+          // 일치할 경우: 뒤집히는 애니메이션(300ms)이 끝난 후 즉시 상태 고정
           setTimeout(() => {
             setGameState(current => {
               const matchedCards = [...current.cards];
               matchedCards[firstIdx].isMatched = true;
               matchedCards[secondIdx].isMatched = true;
+              // matches만 업데이트하고 isFlipped는 그대로 true 유지 (Card 컴포넌트에서 합산 처리)
               const nextMatches = current.matches + 1;
               const totalPairs = current.cards.length / 2;
               const hasWon = nextMatches === totalPairs;
@@ -102,8 +104,9 @@ const App: React.FC = () => {
                 bestScore: hasWon ? updateBestScore(nextMoves, current.difficulty) : current.bestScore
               };
             });
-          }, 400);
+          }, 310); 
         } else {
+          // 불일치 시: 카드를 충분히 보여준 후(800ms) 다시 뒤집기
           setTimeout(() => {
             setGameState(current => {
               const resetCards = [...current.cards];
@@ -118,7 +121,7 @@ const App: React.FC = () => {
       }
       return { ...prev, cards: updatedCards, flippedIndices: newFlipped };
     });
-  };
+  }, [isProcessing, gameState.status]);
 
   const updateBestScore = (score: number, difficulty: Difficulty): number => {
     const key = `bestScore_${difficulty}`;
