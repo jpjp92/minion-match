@@ -26,7 +26,7 @@ export interface GameState {
   flippedIndices: number[];
   moves: number;
   matches: number;
-  status: 'IDLE' | 'PLAYING' | 'WON';
+  status: 'IDLE' | 'PREVIEW' | 'PLAYING' | 'WON';
   difficulty: Difficulty;
   bestScore: number;
 }

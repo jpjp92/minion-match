@@ -8,6 +8,7 @@ const App: React.FC = () => {
   const [imagePool, setImagePool] = useState<string[]>([]);
   const [isLoadingPool, setIsLoadingPool] = useState(true);
   const [isGameLoading, setIsGameLoading] = useState(false);
+  const [previewTimer, setPreviewTimer] = useState(5);
   
   const [gameState, setGameState] = useState<GameState>({
     cards: [],
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [timer, setTimer] = useState(0);
   const timerRef = useRef<number | null>(null);
+  const previewIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     const loadAssets = async () => {
@@ -34,17 +36,25 @@ const App: React.FC = () => {
       setIsLoadingPool(false);
     };
     loadAssets();
-
     const saved = localStorage.getItem('minion_leaderboard');
     if (saved) setLeaderboard(JSON.parse(saved));
+  }, []);
+
+  const startActualGame = useCallback(() => {
+    setGameState(prev => ({ ...prev, status: 'PLAYING' }));
+    setTimer(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = window.setInterval(() => setTimer(t => t + 1), 1000);
   }, []);
 
   const initGame = useCallback(async (difficulty: Difficulty = gameState.difficulty) => {
     if (imagePool.length === 0) return;
 
     setIsGameLoading(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+
     const newCards = createBoard(difficulty, imagePool);
-    
     const imageUrls = Array.from(new Set(newCards.map(c => c.image)));
     await preloadImages(imageUrls);
 
@@ -53,17 +63,25 @@ const App: React.FC = () => {
       flippedIndices: [],
       moves: 0,
       matches: 0,
-      status: 'PLAYING',
+      status: 'PREVIEW',
       difficulty,
       bestScore: Number(localStorage.getItem(`bestScore_${difficulty}`)) || 0
     });
     
-    setTimer(0);
-    setPlayerName('');
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = window.setInterval(() => setTimer(t => t + 1), 1000);
+    setPreviewTimer(5);
     setIsGameLoading(false);
-  }, [gameState.difficulty, imagePool]);
+
+    previewIntervalRef.current = window.setInterval(() => {
+      setPreviewTimer(t => {
+        if (t <= 1) {
+          if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+          startActualGame();
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+  }, [gameState.difficulty, imagePool, startActualGame]);
 
   const handleCardClick = useCallback((index: number) => {
     if (isProcessing || gameState.status !== 'PLAYING') return;
@@ -82,13 +100,11 @@ const App: React.FC = () => {
         const nextMoves = prev.moves + 1;
 
         if (isMatch) {
-          // 일치할 경우: 뒤집히는 애니메이션(300ms)이 끝난 후 즉시 상태 고정
           setTimeout(() => {
             setGameState(current => {
               const matchedCards = [...current.cards];
               matchedCards[firstIdx].isMatched = true;
               matchedCards[secondIdx].isMatched = true;
-              // matches만 업데이트하고 isFlipped는 그대로 true 유지 (Card 컴포넌트에서 합산 처리)
               const nextMatches = current.matches + 1;
               const totalPairs = current.cards.length / 2;
               const hasWon = nextMatches === totalPairs;
@@ -106,7 +122,6 @@ const App: React.FC = () => {
             });
           }, 310); 
         } else {
-          // 불일치 시: 카드를 충분히 보여준 후(800ms) 다시 뒤집기
           setTimeout(() => {
             setGameState(current => {
               const resetCards = [...current.cards];
@@ -134,7 +149,10 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    return () => { 
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+    };
   }, []);
 
   const saveToLeaderboard = () => {
@@ -154,6 +172,7 @@ const App: React.FC = () => {
     localStorage.setItem('minion_leaderboard', JSON.stringify(updated));
     setGameState(prev => ({ ...prev, status: 'IDLE' }));
     setIsLeaderboardOpen(true);
+    setPlayerName(''); // 입력 필드 초기화
   };
 
   if (isLoadingPool) {
@@ -173,47 +192,53 @@ const App: React.FC = () => {
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(30,58,138,0.1),transparent_70%)]"></div>
       </div>
 
-      <main className="relative z-10 w-full max-w-5xl px-3 sm:px-4 py-4 sm:py-8 flex flex-col gap-6">
-        <header className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] p-4 sm:p-6 shadow-2xl">
+      <main className="relative z-10 w-full max-w-5xl px-3 sm:px-4 py-2 sm:py-8 flex flex-col gap-3 sm:gap-6">
+        <header className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] p-3 sm:p-6 shadow-2xl">
           <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-4xl font-fredoka font-bold text-yellow-400 leading-none tracking-tight">MINION MATCH</h1>
-            <p className="text-blue-300 font-black uppercase text-[8px] sm:text-[10px] tracking-widest mt-1">Classic Edition</p>
+            <h1 className="text-xl sm:text-4xl font-fredoka font-bold text-yellow-400 leading-none tracking-tight">MINION MATCH</h1>
+            <p className="text-blue-300 font-black uppercase text-[7px] sm:text-[10px] tracking-widest mt-0.5 sm:mt-1">
+              {gameState.status === 'PREVIEW' ? 'Memorize Mode' : 'Classic Edition'}
+            </p>
           </div>
 
-          <div className="grid grid-cols-4 gap-1 sm:gap-2 bg-black/40 rounded-xl sm:rounded-2xl p-1.5 border border-white/10 w-full sm:w-auto">
+          <div className="grid grid-cols-4 gap-1 sm:gap-2 bg-black/40 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 border border-white/10 w-full sm:w-auto">
             {[
               { label: 'Moves', value: gameState.moves, color: 'text-white' },
-              { label: 'Time', value: `${Math.floor(timer/60)}:${(timer%60).toString().padStart(2,'0')}`, color: 'text-blue-400' },
+              { 
+                label: gameState.status === 'PREVIEW' ? 'Wait' : 'Time', 
+                value: gameState.status === 'PREVIEW' ? `${previewTimer}s` : `${Math.floor(timer/60)}:${(timer%60).toString().padStart(2,'0')}`, 
+                color: gameState.status === 'PREVIEW' ? 'text-orange-400' : 'text-blue-400' 
+              },
               { label: 'Pairs', value: `${gameState.matches}/${actualTotalPairs || 0}`, color: 'text-yellow-400' },
               { label: 'Best', value: gameState.bestScore === 0 ? '--' : gameState.bestScore, color: 'text-purple-400' }
             ].map((stat, i) => (
-              <div key={i} className="px-2 py-1 text-center border-r last:border-0 border-white/5 min-w-[60px] sm:min-w-[90px]">
-                <p className="text-[7px] sm:text-[8px] uppercase font-black text-gray-500 tracking-tighter mb-0.5">{stat.label}</p>
-                <p className={`text-[14px] sm:text-lg font-black ${stat.color}`}>{stat.value}</p>
+              <div key={i} className="px-1 sm:px-2 py-0.5 sm:py-1 text-center border-r last:border-0 border-white/5 min-w-[55px] sm:min-w-[90px]">
+                <p className="text-[6px] sm:text-[8px] uppercase font-black text-gray-500 tracking-tighter mb-0.5">{stat.label}</p>
+                <p className={`text-[12px] sm:text-lg font-black ${stat.color}`}>{stat.value}</p>
               </div>
             ))}
           </div>
         </header>
 
-        <div className="flex flex-col lg:grid lg:grid-cols-[1fr_260px] gap-6">
-          <section className="order-2 lg:order-1">
+        <div className="flex flex-col lg:grid lg:grid-cols-[1fr_260px] gap-4 sm:gap-6">
+          <section className="order-2 lg:order-1 relative">
             {gameState.status === 'IDLE' || isGameLoading ? (
-              <div className="min-h-[450px] sm:min-h-[550px] flex flex-col items-center justify-center space-y-6 bg-white/[0.02] rounded-[2.5rem] border-2 border-dashed border-white/10 p-6">
+              <div className="min-h-[350px] sm:min-h-[550px] flex flex-col items-center justify-center space-y-4 sm:space-y-6 bg-white/[0.02] rounded-[2rem] sm:rounded-[2.5rem] border-2 border-dashed border-white/10 p-4 sm:p-6">
                  {isGameLoading ? (
                    <>
-                     <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                     <p className="font-fredoka text-lg font-bold text-yellow-400 animate-pulse">Preloading Bananas...</p>
+                     <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                     <p className="font-fredoka text-base sm:text-lg font-bold text-yellow-400 animate-pulse">Preloading Bananas...</p>
                    </>
                  ) : (
                    <>
-                     <span className="text-7xl animate-bounce">🍌</span>
-                     <h2 className="text-xl sm:text-2xl font-bold font-fredoka text-white">Select Your Mission</h2>
-                     <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-sm">
+                     <span className="text-5xl sm:text-7xl animate-bounce">🍌</span>
+                     <h2 className="text-lg sm:text-2xl font-bold font-fredoka text-white text-center">Ready for your mission?</h2>
+                     <div className="flex flex-col sm:flex-row justify-center gap-3 w-full max-w-sm">
                         {(['EASY', 'MEDIUM'] as Difficulty[]).map(d => (
                           <button 
                             key={d} 
                             onClick={() => initGame(d)} 
-                            className="flex-1 py-4 bg-yellow-400 text-black rounded-2xl font-black text-lg hover:scale-105 transition-all active:scale-95 shadow-xl shadow-yellow-400/20"
+                            className="flex-1 py-3 sm:py-4 bg-yellow-400 text-black rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:scale-105 transition-all active:scale-95 shadow-xl shadow-yellow-400/20"
                           >
                             {d}
                           </button>
@@ -223,36 +248,56 @@ const App: React.FC = () => {
                  )}
               </div>
             ) : (
-              <div className="bg-white/[0.02] p-3 sm:p-6 rounded-[2.5rem] border border-white/5 backdrop-blur-md shadow-2xl flex items-center justify-center min-h-[450px] sm:min-h-[550px]">
-                <div className={`grid grid-cols-4 gap-3 sm:gap-4 w-full mx-auto justify-items-center ${gameState.difficulty === Difficulty.EASY ? 'max-w-md' : 'max-w-lg'}`}>
-                  {gameState.cards.map((card, idx) => (
-                    <Card key={card.id} card={card} onClick={() => handleCardClick(idx)} disabled={isProcessing} />
-                  ))}
+              <div className="flex flex-col gap-2 sm:gap-4">
+                {gameState.status === 'PREVIEW' && (
+                  <div className="w-full bg-yellow-400 rounded-xl sm:rounded-2xl p-2 sm:p-3 flex items-center justify-between border sm:border-2 border-white shadow-lg animate-fadeIn">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg sm:text-xl">👀</span>
+                      <span className="font-fredoka font-black text-black text-[12px] sm:text-base uppercase tracking-tight">Memorize the Bananas!</span>
+                    </div>
+                    <div className="bg-black text-yellow-400 px-3 py-0.5 sm:py-1 rounded-full font-black text-base sm:text-lg">
+                      {previewTimer}s
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white/[0.02] p-2 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border border-white/5 backdrop-blur-md shadow-2xl flex items-center justify-center min-h-[350px] sm:min-h-[550px] relative overflow-hidden">
+                  <div className={`grid grid-cols-4 gap-2 sm:gap-4 w-full mx-auto justify-items-center ${gameState.difficulty === Difficulty.EASY ? 'max-w-md' : 'max-w-lg'}`}>
+                    {gameState.cards.map((card, idx) => (
+                      <Card 
+                        key={card.id} 
+                        card={card} 
+                        onClick={() => handleCardClick(idx)} 
+                        disabled={isProcessing || gameState.status === 'PREVIEW'} 
+                        isPreviewing={gameState.status === 'PREVIEW'}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
           </section>
 
-          <aside className="order-1 lg:order-2 flex flex-col gap-5">
-             <div className="bg-white/5 backdrop-blur-3xl p-5 sm:p-6 rounded-[2rem] border border-white/10 shadow-2xl space-y-5">
+          <aside className="order-1 lg:order-2 flex flex-col gap-3 sm:gap-5">
+             <div className="bg-white/5 backdrop-blur-3xl p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-white/10 shadow-2xl space-y-3 sm:space-y-5">
                 <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                    </div>
-                   <h3 className="font-fredoka text-base font-bold text-blue-400">MISSION CONTROL</h3>
+                   <h3 className="font-fredoka text-sm sm:text-base font-bold text-blue-400 uppercase tracking-tight">Mission Panel</h3>
                 </div>
 
-                <div className="flex flex-col gap-3">
-                   <button onClick={() => initGame(gameState.difficulty)} className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-black text-xs transition-all active:scale-95 shadow-lg shadow-blue-600/20">Restart Mission</button>
-                   <button onClick={() => setIsLeaderboardOpen(true)} className="py-3 bg-yellow-400 hover:bg-yellow-300 text-black rounded-xl font-black text-xs transition-all active:scale-95 shadow-lg shadow-yellow-400/10">🏆 Leaderboard</button>
-                   <button onClick={() => setGameState(prev => ({ ...prev, status: 'IDLE' }))} className="py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-gray-400 text-[10px] transition-all">Back to Menu</button>
+                <div className="flex flex-col gap-2 sm:gap-3">
+                   <button onClick={() => initGame(gameState.difficulty)} className="py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-500 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all active:scale-95 shadow-lg shadow-blue-600/20">Restart Mission</button>
+                   <button onClick={() => setIsLeaderboardOpen(true)} className="py-2.5 sm:py-3 bg-yellow-400 hover:bg-yellow-300 text-black rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all active:scale-95 shadow-lg shadow-yellow-400/10">🏆 Leaderboard</button>
+                   <button onClick={() => setGameState(prev => ({ ...prev, status: 'IDLE' }))} className="py-2.5 sm:py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg sm:rounded-xl font-bold text-gray-400 text-[9px] sm:text-[10px] transition-all">Back to Menu</button>
                 </div>
 
-                <div className="pt-5 border-t border-white/10">
-                   <p className="text-[8px] text-gray-500 uppercase font-black mb-3 text-center tracking-widest">Difficulty</p>
-                   <div className="grid grid-cols-2 gap-2 p-1 bg-black/40 rounded-xl">
+                <div className="pt-3 sm:pt-5 border-t border-white/10">
+                   <p className="text-[7px] sm:text-[8px] text-gray-500 uppercase font-black mb-2 sm:mb-3 text-center tracking-widest">Difficulty</p>
+                   <div className="grid grid-cols-2 gap-1.5 p-1 bg-black/40 rounded-lg sm:rounded-xl">
                      {([Difficulty.EASY, Difficulty.MEDIUM] as Difficulty[]).map(d => (
-                       <button key={d} onClick={() => initGame(d)} className={`py-2 text-[9px] font-black rounded-lg transition-all ${gameState.difficulty === d ? 'bg-yellow-400 text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>{d}</button>
+                       <button key={d} onClick={() => initGame(d)} className={`py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black rounded-md sm:rounded-lg transition-all ${gameState.difficulty === d ? 'bg-yellow-400 text-black shadow-md' : 'text-gray-500 hover:text-white'}`}>{d}</button>
                      ))}
                    </div>
                 </div>
@@ -269,11 +314,20 @@ const App: React.FC = () => {
               <span className="text-6xl animate-bounce">🏆</span>
               <div>
                 <h2 className="text-2xl sm:text-3xl font-fredoka font-bold text-yellow-400 uppercase tracking-tight">Banana Success!</h2>
-                <p className="text-gray-400 text-sm mt-2">Moves: <span className="text-white font-bold">{gameState.moves}</span> | Time: <span className="text-white font-bold">{Math.floor(timer/60)}:{timer%60}</span></p>
+                <p className="text-gray-400 text-sm mt-2">Moves: <span className="text-white font-bold">{gameState.moves}</span> | Time: <span className="text-white font-bold">{Math.floor(timer/60)}:{(timer%60).toString().padStart(2,'0')}</span></p>
               </div>
               <div className="w-full space-y-3">
-                <input type="text" placeholder="Enter Agent Name..." value={playerName} onChange={(e) => setPlayerName(e.target.value)} maxLength={12} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-400 transition-colors text-center font-bold text-sm" />
-                <button onClick={saveToLeaderboard} disabled={!playerName.trim()} className="w-full py-4 bg-yellow-400 text-black font-black text-base rounded-xl active:scale-95 transition-all shadow-lg shadow-yellow-400/20 disabled:opacity-50">SAVE RECORD</button>
+                <input 
+                  type="text" 
+                  placeholder="Enter Agent Name..." 
+                  value={playerName} 
+                  onChange={(e) => setPlayerName(e.target.value)} 
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveToLeaderboard(); }}
+                  maxLength={12} 
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-400 transition-colors text-center font-bold text-sm" 
+                  autoFocus
+                />
+                <button onClick={saveToLeaderboard} disabled={!playerName.trim()} className="w-full py-4 bg-yellow-400 text-black font-black text-base rounded-xl active:scale-95 transition-all shadow-lg shadow-yellow-400/20 disabled:opacity-50 uppercase">SAVE RECORD</button>
               </div>
             </div>
           </div>
