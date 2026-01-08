@@ -172,7 +172,7 @@ const App: React.FC = () => {
     localStorage.setItem('minion_leaderboard', JSON.stringify(updated));
     setGameState(prev => ({ ...prev, status: 'IDLE' }));
     setIsLeaderboardOpen(true);
-    setPlayerName(''); // 입력 필드 초기화
+    setPlayerName('');
   };
 
   if (isLoadingPool) {
@@ -262,7 +262,8 @@ const App: React.FC = () => {
                 )}
 
                 <div className="bg-white/[0.02] p-2 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border border-white/5 backdrop-blur-md shadow-2xl flex items-center justify-center min-h-[350px] sm:min-h-[550px] relative overflow-hidden">
-                  <div className={`grid grid-cols-4 gap-2 sm:gap-4 w-full mx-auto justify-items-center ${gameState.difficulty === Difficulty.EASY ? 'max-w-md' : 'max-w-lg'}`}>
+                  {/* 웹에서도 카드가 큼직하게 보이도록 max-w를 상향 조정하고 EASY/MEDIUM 너비를 통일하여 카드 크기 일치시킴 */}
+                  <div className={`grid grid-cols-4 gap-2 sm:gap-4 w-full mx-auto justify-items-center max-w-full sm:max-w-[600px]`}>
                     {gameState.cards.map((card, idx) => (
                       <Card 
                         key={card.id} 
